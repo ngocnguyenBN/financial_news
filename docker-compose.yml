@@ -1,0 +1,13 @@
+version: '3.9'
+
+services:
+  news-api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app   # Gắn thư mục app trong host vào /app/app trong container
+    working_dir: /app/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    restart: always
+    shm_size: '2gb'

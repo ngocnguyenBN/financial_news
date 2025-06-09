@@ -1,0 +1,24 @@
+# FinanceDataProject/airflow/requirements.txt
+psycopg2-binary
+selenium
+webdriver-manager
+cassandra-driver
+pandas_market_calendars
+lxml
+polars
+bs4
+yfinance
+tabulate
+pylint
+openpyxl
+schedule
+pandas
+numpy
+scipy
+timeout-decorator
+matplotlib
+timeout-decorator
+fastapi
+uvicorn
+beautifulsoup4
+requests
