@@ -68,3 +68,145 @@ def get_cafef_news(
         return {"source": "Cafef", "articles": news}
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/top_sectors")
+def get_top_sectors(interval: str = Query("1D", regex="^(1D|1W|1M|3M|6M|1Y|YTD)$")):
+    """
+    Fetch top sectors data, filter key fields, and sort by changePercent descending.
+    """
+    from trade_summary.top_sectors import fetch_icb_fluctuation
+
+    try:
+        icb_codes_list = "0001,1000,2000,3000,4000,5000,6000,7000,8000,9000"
+        fluctuation_data = fetch_icb_fluctuation(icb_codes_list)
+
+        percent_field = f"changePercent{interval}"
+
+        filtered_data = []
+        for item in fluctuation_data:
+            change_percent = item.get(percent_field)
+            if change_percent is not None:
+                filtered_data.append(
+                    {
+                        "id": item.get("id"),
+                        "icbCode": item.get("icbCode"),
+                        "icbName": item.get("icbName"),
+                        "changePercent": change_percent,
+                        "tradingDate": item.get("tradingDate"),
+                    }
+                )
+
+        sorted_data = sorted(
+            filtered_data, key=lambda x: x["changePercent"], reverse=True
+        )
+
+        return {"source": "Top Sectors", "interval": interval, "data": sorted_data}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/top_netforeign")
+def get_top_netforeign():
+    """
+    Fetch top net foreign buy/sell data.
+    """
+    from trade_summary.top_netforeign import fetch_top_netforeign
+
+    try:
+        netforeign_data = fetch_top_netforeign()
+
+        top_buy_raw = netforeign_data.get(
+            "NETFOREIGN_HSX_HNX_UPCOM_VOL_1D_BUY", {}
+        ).get("data", [])
+
+        top_sell_raw = netforeign_data.get(
+            "NETFOREIGN_HSX_HNX_UPCOM_VOL_1D_SALE", {}
+        ).get("data", [])
+
+        top_buy = [
+            {"ticker": item["text"], "value": item["value"]} for item in top_buy_raw
+        ]
+        top_sell = [
+            {"ticker": item["text"], "value": item["value"]} for item in top_sell_raw
+        ]
+
+        return {"source": "Top Net Foreign", "top_buy": top_buy, "top_sell": top_sell}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/top_interested_stocks")
+def get_top_interested_stocks():
+    """
+    Fetch top interested stocks data.
+    """
+    from trade_summary.top_interested_stocks import fetch_top_interested_stocks
+
+    try:
+        top_stocks = fetch_top_interested_stocks()
+        return {"source": "Top Interested Stocks", "data": top_stocks}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/khoi_tu_doanh")
+def get_khoi_tu_doanh(period: str = Query("1W", regex="^(1W|1M|6M|1Y|YTD)$")):
+    """
+    Fetch Khoi Tu Doanh data for a given period.
+    """
+    from trade_summary.khoi_tu_doanh import get_data_khoi_tu_doanh
+
+    try:
+        khoi_tu_doanh_data = get_data_khoi_tu_doanh(period)
+        return khoi_tu_doanh_data
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/khoi_ngoai")
+def get_khoi_ngoai(period: str = Query("1D", regex="^(1D|1W|1M|3M|6M|1Y)$")):
+    """
+    Fetch Khoi Ngoai data for a given period.
+    """
+    from trade_summary.khoi_ngoai import get_data_khoi_ngoai
+
+    try:
+        khoi_ngoai_data = get_data_khoi_ngoai(period)
+        return khoi_ngoai_data
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/index_summary")
+def get_index_summary():
+    """
+    Fetch index summary data.
+    """
+    from trade_summary.index_summary import fetch_index_summary
+
+    try:
+        index_summary_data = fetch_index_summary()
+        return {"source": "Index Summary", "data": index_summary_data}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/index_fluctuation")
+def get_index_fluctuation(index_name: str = Query("HSX", enum=["HSX", "HNX", "UPCOM"])):
+    """
+    Fetch index fluctuation data for a given index name (HSX, HNX, or UPCOM).
+    """
+    from trade_summary.index_fluctuation import fetch_index_fluctuation
+
+    try:
+        index_fluctuation_data = fetch_index_fluctuation(index_name)
+        return {
+            "source": "Index Fluctuation",
+            "index_name": index_name,
+            "data": index_fluctuation_data,
+        }
+    except Exception as e:
+        return {"error": str(e)}
