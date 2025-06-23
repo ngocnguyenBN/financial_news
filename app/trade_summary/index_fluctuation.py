@@ -65,7 +65,6 @@ import json
 #                     By.XPATH,
 #                     f"//span[@class='bp5-button-text' and text()='{index_name}']",
 #                 )
-#                 # //*[@id="root"]/div/div[2]/div[11]/div/div[1]/div[2]/button[2]/span
 #                 tab_button.click()
 #                 time.sleep(2)
 
@@ -138,7 +137,7 @@ import json
 #     return data_all_indices
 
 
-def fetch_index_fluctuation(index_name="HSX"):
+def fetch_index_fluctuation(index_name="UPCOM"):
     """
     Fetches the index fluctuation data from FireAnt for a specific index: HSX, HNX, or UPCOM.
     """
@@ -167,7 +166,7 @@ def fetch_index_fluctuation(index_name="HSX"):
         )
         close_button.click()
     except NoSuchElementException:
-        print("Không có pop-up")
+        print("None pop-up")
 
     try:
         # Bấm tab "Chỉ số"
@@ -183,7 +182,7 @@ def fetch_index_fluctuation(index_name="HSX"):
             f"//span[@class='bp5-button-text' and text()='{index_name}']",
         )
         tab_button.click()
-        time.sleep(2)
+        time.sleep(5)
 
         canvas = driver.find_element(
             By.CSS_SELECTOR,
@@ -221,12 +220,16 @@ def fetch_index_fluctuation(index_name="HSX"):
             except Exception:
                 continue
 
+        # print(f"Found {len(data_points)} data points for {index_name} index.")
         # Parse tooltip text
         parsed_data = []
         for item in data_points:
             item = item.replace("\n", " ")
             try:
                 ma_ck_part = item.split("Mã CK: ")[1].split(" Ảnh hưởng")[0].strip()
+                # print(f"Processing ticker: {ma_ck_part}")
+                if len(ma_ck_part) > 3:
+                    continue
                 anh_huong_part = item.split("Ảnh hưởng tới index: ")[1].strip()
                 parsed_data.append(
                     {
@@ -236,7 +239,7 @@ def fetch_index_fluctuation(index_name="HSX"):
                     }
                 )
             except Exception as e:
-                print(f"Lỗi phân tích chuỗi: {item} - {e}")
+                print(f"Error parsing: {item} - {e}")
                 continue
 
         driver.quit()
@@ -244,5 +247,5 @@ def fetch_index_fluctuation(index_name="HSX"):
 
     except NoSuchElementException:
         driver.quit()
-        print("Không tìm thấy chỉ số hoặc tab không đúng")
+        print("No Data")
         return []

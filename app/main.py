@@ -210,3 +210,17 @@ def get_index_fluctuation(index_name: str = Query("HSX", enum=["HSX", "HNX", "UP
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/top_news")
+def get_top_news():
+    """
+    Fetch top news articles from various sources.
+    """
+    from trade_summary.top_news import fetch_top_news
+
+    try:
+        top_news_data = fetch_top_news()
+        return {"source": "Top News", "data": top_news_data}
+    except Exception as e:
+        return {"error": str(e)}
