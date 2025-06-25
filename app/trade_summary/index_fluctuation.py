@@ -24,7 +24,7 @@ def fetch_index_fluctuation(index_name="UPCOM"):
     Fetches the index fluctuation data from FireAnt for a specific index: HSX, HNX, or UPCOM.
     """
     chrome_options = webdriver.ChromeOptions()
-    # chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--disable-dev-shm-usage")
