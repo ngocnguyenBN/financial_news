@@ -154,7 +154,7 @@ def fetch_index_fluctuation(index_name="UPCOM"):
     )
     driver.get("https://fireant.vn/dashboard")
     actions = ActionChains(driver)
-
+    time.sleep(2)
     try:
         pop_up = driver.find_element(
             By.CSS_SELECTOR,
@@ -170,9 +170,14 @@ def fetch_index_fluctuation(index_name="UPCOM"):
 
     try:
         # Bấm tab "Chỉ số"
+        # index_tab = driver.find_element(
+        #     By.CSS_SELECTOR,
+        #     "#root > div > div.layout__layout > div:nth-child(11) > div > div.sc-bqMJjo.eQylDP > div > div.sc-cvBxsj.jeDigm.bp5-card > div:nth-child(1) > div > ul > li:nth-child(2)",
+        # )
         index_tab = driver.find_element(
-            By.CSS_SELECTOR,
-            "#root > div > div.layout__layout > div:nth-child(11) > div > div.sc-bqMJjo.eQylDP > div > div.sc-cvBxsj.jeDigm.bp5-card > div:nth-child(1) > div > ul > li:nth-child(2)",
+            By.XPATH,
+            # "//*[@id='root']/div/div[2]/div[11]/div/div[2]/div/div[1]/div[1]/div/ul/li[2]",
+            "//li[@class='bp5-tab' and text()='Tác động tới index']",
         )
         index_tab.click()
 
@@ -184,10 +189,19 @@ def fetch_index_fluctuation(index_name="UPCOM"):
         tab_button.click()
         time.sleep(5)
 
+        # canvas = driver.find_element(
+        #     By.CSS_SELECTOR,
+        #     "#root > div > div.layout__layout > div:nth-child(11) > div > div.sc-bqMJjo.eQylDP > div > div.sc-cvBxsj.jeDigm.bp5-card > div.sc-frWhYi.VbLZs > div > div > div.echarts-for-react > div:nth-child(1) > canvas",
+        # )
+        # canvas = driver.find_element(
+        #     By.XPATH,
+        #     "//*[@id='root']/div/div[2]/div[11]/div/div[2]/div/div[1]/div[2]/div/div/div[1]/div[1]/canvas",
+        # )
         canvas = driver.find_element(
-            By.CSS_SELECTOR,
-            "#root > div > div.layout__layout > div:nth-child(11) > div > div.sc-bqMJjo.eQylDP > div > div.sc-cvBxsj.jeDigm.bp5-card > div.sc-frWhYi.VbLZs > div > div > div.echarts-for-react > div:nth-child(1) > canvas",
+            By.XPATH,
+            "//div[@class='echarts-for-react ' and @size-sensor-id='12']//canvas",
         )
+
         canvas_width = int(canvas.get_attribute("width"))
         canvas_height = int(canvas.get_attribute("height"))
         data_points = []

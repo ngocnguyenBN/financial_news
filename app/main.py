@@ -213,14 +213,61 @@ def get_index_fluctuation(index_name: str = Query("HSX", enum=["HSX", "HNX", "UP
 
 
 @app.get("/top_news")
-def get_top_news():
+def get_top_news(
+    date_news=Query(
+        default=datetime.now().date(),
+        description="Date in YYYY-MM-DD format",
+    ),
+    type_news=Query(
+        default="stock",
+        enum=[
+            "stock",
+            "newest",
+            "popular",
+            "company",
+            "financial",
+            "realestate",
+            "macroeconomic",
+            "worldnews",
+            "communitynews",
+        ],
+    ),
+):
     """
     Fetch top news articles from various sources.
     """
-    from trade_summary.top_news import fetch_top_news
+    from trade_summary.top_news import fetch_top_news_with_date
 
     try:
-        top_news_data = fetch_top_news()
+        top_news_data = fetch_top_news_with_date(date_news, type_news)
         return {"source": "Top News", "data": top_news_data}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/yahoo_finance_news")
+def get_yahoo_finance_news():
+    """
+    Fetch international news articles from various sources.
+    """
+    from international_news.yah_news import fetch_yah_news
+
+    try:
+        yah_news_data = fetch_yah_news()
+        return {"source": "International News", "data": yah_news_data}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/market_watch_news")
+def get_market_watch_news():
+    """
+    Fetch stock market news from MarketWatch.
+    """
+    from international_news.market_watch_news import fetch_market_watch_news
+
+    try:
+        market_watch_news_data = fetch_market_watch_news()
+        return {"source": "MarketWatch News", "data": market_watch_news_data}
     except Exception as e:
         return {"error": str(e)}
