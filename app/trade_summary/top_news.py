@@ -70,6 +70,7 @@ def fetch_top_news():
 def fetch_top_news_with_date(date_news=datetime.now().date(), type_news="stock"):
     if isinstance(date_news, str):
         date_news = datetime.strptime(date_news, "%Y-%m-%d").date()
+
     url = f"https://fwt.fialda.com/news/{type_news}"
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument("--headless=new")
@@ -77,6 +78,9 @@ def fetch_top_news_with_date(date_news=datetime.now().date(), type_news="stock")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--log-level=3")  # Suppress non-critical logs
+    chrome_options.add_argument("--disable-usb")  # Disable USB to avoid error
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
@@ -85,15 +89,12 @@ def fetch_top_news_with_date(date_news=datetime.now().date(), type_news="stock")
     driver.get(url)
     wait = WebDriverWait(driver, 15)
 
-    wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "div.ant-modal-content > button")
-        )
-    )
-
-    time.sleep(5)
-
     try:
+        wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div.ant-modal-content > button")
+            )
+        )
         close_btn = driver.find_element(
             By.CSS_SELECTOR, "div.ant-modal-content > button"
         )
@@ -107,35 +108,37 @@ def fetch_top_news_with_date(date_news=datetime.now().date(), type_news="stock")
         )
     )
 
-    scrollable_div = driver.find_element(
-        By.CLASS_NAME, "ReactVirtualized__Grid__innerScrollContainer"
-    )
     results = []
     seen_urls = set()
-
-    previous_items = -1
-    same_count = 0
+    previous_urls = set()
+    same_content_count = 0
     max_scrolls = 50
-    scroll_position = 0
-    step = 300
-    for _ in range(max_scrolls):
-        driver.execute_script(
-            "arguments[0].scrollTop = arguments[1]", scrollable_div, scroll_position
-        )
-        time.sleep(1.5)
-        scroll_position += step
+    scroll_step = 500
+
+    for i in range(max_scrolls):
+        driver.execute_script(f"window.scrollBy(0, {scroll_step});")
+        # print(f"Scroll attempt {i+1}: Scrolled by {scroll_step} pixels")
+        # time.sleep(2)
 
         soup = BeautifulSoup(driver.page_source, "html.parser")
         rows = soup.select(
             "div.ReactVirtualized__Grid__innerScrollContainer > div.table_row"
         )
-        if len(rows) == previous_items:
-            same_count += 1
-            if same_count >= 3:
+
+        current_urls = {
+            row.select_one("a")["href"] for row in rows if row.select_one("a")
+        }
+        # print(f"Found {len(current_urls)} URLs after scroll {i+1}")
+
+        new_urls = current_urls - previous_urls
+        if not new_urls:
+            same_content_count += 1
+            if same_content_count >= 3:
+                print("No new content loaded after 3 scrolls, stopping")
                 break
         else:
-            same_count = 0
-            previous_items = len(rows)
+            same_content_count = 0
+            previous_urls = current_urls
 
         for row in rows:
             news_item = row.select_one("a")
@@ -162,33 +165,37 @@ def fetch_top_news_with_date(date_news=datetime.now().date(), type_news="stock")
 
             try:
                 dt = datetime.strptime(date_text.strip(), "%d/%m/%Y %H:%M")
-            except:
+            except ValueError:
                 continue
 
             if dt.date() < date_news:
                 driver.quit()
                 return results
 
-            image_style = row.select_one(".news-item-image > div")["style"]
-            img_match = re.search(r'url\("(.+?)"\)', image_style)
-            image_url = img_match.group(1) if img_match else ""
+            image_style = row.select_one(".news-item-image > div")
+            image_url = ""
+            if image_style and image_style.get("style"):
+                img_match = re.search(r'url\("(.+?)"\)', image_style["style"])
+                image_url = img_match.group(1) if img_match else ""
 
-            # Crawl detail content
             html_content = None
-            detail_resp = requests.get(full_url, headers=headers)
-            if detail_resp.status_code == 200:
-                detail_soup = BeautifulSoup(detail_resp.content, "html.parser")
-                html_block = detail_soup.find("div", class_="content-seo")
-                if html_block:
-                    filtered_html = [
-                        p
-                        for p in html_block.find_all("p")
-                        if isinstance(p, Tag) and not p.find("a")
-                    ]
-                    raw_text = "\n".join(
-                        [p.get_text(strip=True) for p in filtered_html]
-                    )
-                    html_content = " ".join(raw_text.split())
+            try:
+                detail_resp = requests.get(full_url, headers=headers)
+                if detail_resp.status_code == 200:
+                    detail_soup = BeautifulSoup(detail_resp.content, "html.parser")
+                    html_block = detail_soup.find("div", class_="content-seo")
+                    if html_block:
+                        filtered_html = [
+                            p
+                            for p in html_block.find_all("p")
+                            if isinstance(p, Tag) and not p.find("a")
+                        ]
+                        raw_text = "\n".join(
+                            [p.get_text(strip=True) for p in filtered_html]
+                        )
+                        html_content = " ".join(raw_text.split())
+            except Exception as e:
+                print(f"Error fetching details for {full_url}: {e}")
 
             symbol_data = []
             list_symbols = row.find("div", class_="list-symbols")
@@ -199,17 +206,30 @@ def fetch_top_news_with_date(date_news=datetime.now().date(), type_news="stock")
                     change_percent_div = a_tag.find("div", class_="changePercent")
                     change_div = a_tag.find("div", class_="change")
 
+                    price = None
+                    if last_div:
+                        try:
+                            price = float(last_div.text.strip().replace(",", ""))
+                        except ValueError:
+                            print(f"Failed to convert price: {last_div.text.strip()}")
+
+                    change_percent = None
+                    if change_percent_div:
+                        try:
+                            change_percent = float(
+                                change_percent_div.text.strip().replace(",", "")
+                            )
+                        except ValueError:
+                            print(
+                                f"Failed to convert changePercent: {change_percent_div.text.strip()}"
+                            )
+
                     symbol_info = {
                         "symbol": name_div.text.strip() if name_div else None,
-                        "price": float(last_div.text.strip()) if last_div else None,
-                        "changePercent": (
-                            float(change_percent_div.text.strip())
-                            if change_percent_div
-                            else None
-                        ),
+                        "price": price,
+                        "changePercent": change_percent,
                         "change": change_div.text.strip() if change_div else None,
                     }
-
                     symbol_data.append(symbol_info)
 
             results.append(
@@ -229,4 +249,4 @@ def fetch_top_news_with_date(date_news=datetime.now().date(), type_news="stock")
     return results
 
 
-a = fetch_top_news_with_date()
+# a = fetch_top_news_with_date(date_news="2025-06-28", type_news="stock")
